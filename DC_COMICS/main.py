@@ -1,12 +1,17 @@
-from bs4 import BeautifulSoup
-import requests
 import json
 
+import requests
+from bs4 import BeautifulSoup
+
+character_names = []
 dc_comics_characters = []
 picture_urls = {}
+unique_character_names = []
 dummy_character_info_dict = {}
 character_info_dict = {}
 dc_file_path = "dc_comics.json"
+text_file = 'dc.txt'
+count = 0
 
 # URL FOR FIRST LINK
 base_url = 'https://www.dc.com/characters?page={}'
@@ -14,38 +19,44 @@ base_url = 'https://www.dc.com/characters?page={}'
 for page_number in range(1, 14):
     url1 = base_url.format(page_number)
     response = requests.get(url1)
-    character_names = []
+
     if response.status_code == 200:
         html1_text = requests.get(url1).content
         soup1 = BeautifulSoup(html1_text, 'lxml')
 
         # Find all elements with the class "card-container"
         characters = soup1.find_all(class_="card-container")
-    # Iterate over the elements
-    for character in characters:
-        character_name = character.find(class_='card-title').text.strip()
 
-        if character_name.endswith('.'):
-            character_name = character_name[:-1]
-        if "." or ":" in character_name:
-            character_name = character_name.replace('.', '-')
-            character_name = character_name.replace(':', '')
-        character_name = character_name.lower().replace(' ', '-')  # changing names to lower and hyphenating them
+        # Iterate over the elements
+        for character in characters:
+            character_name = character.find(class_='card-title').text.strip()
 
-        if character_name not in character_names:
-            character_names.append(character_name)
-            picture_urls.update({character_name: character.find('img')['src']})
-    character_names = character_names[11:]  # REMOVING CHARACTERS NOT IN THE BOTTOM GRID
+            if character_name.endswith('.'):
+                character_name = character_name[:-1]
+            if "." or ":" or "'" in character_name:
+                character_name = character_name.replace('.', '-')
+                character_name = character_name.replace(':', '')
+                character_name = character_name.replace('\'', '')
+            character_name = character_name.lower().replace(' ', '-')  # changing names to lower and hyphenating them
 
+            if character_name not in character_names:
+                character_names.append(character_name)
+                if character_name == 'earth-6':
+                    character_names.remove(character_name)
+                picture_urls.update({character_name: character.find('img')['src']})
+    # character_names = character_names[9:]  # REMOVING CHARACTERS NOT IN THE BOTTOM GRID
     # print(character_names)
     # GETTING UNIQUE CHARACTER NAMES IN THE LIST
-    unique_character_names = []
-    for unique_name in character_names:
-        if unique_name not in unique_character_names:
-            unique_character_names.append(unique_name)
+    # for unique_name in character_names:
+    #     if unique_name not in unique_character_names:
+    #         unique_character_names.append(unique_name)
+
+    char_string = '\n'.join(character_names)
+    with open(text_file, 'w') as file:
+        file.write(char_string)
 
     # GETTING CHARACTER STORY
-    for unique_name in unique_character_names:
+    for unique_name in character_names:
         url2 = f'https://www.dc.com/characters/{unique_name}'
         html2_text = requests.get(url2).content
         soup2 = BeautifulSoup(html2_text, 'lxml')
@@ -63,9 +74,11 @@ for page_number in range(1, 14):
 
         # DELETING UNWANTED TAGS FROM CHARACTER'S ABOUT
         del about_character[0]
+        # count += 1
+        # print(f'0 of {count} deleted')
 
-        # GETTING FACTS ABOUT CHARACTER
-        # DELETING MULTIPLE 'CHARACTER FACTS'
+#         # GETTING FACTS ABOUT CHARACTER
+#         # DELETING MULTIPLE 'CHARACTER FACTS'
         indices_to_delete = [i for i, elem in enumerate(about_character) if
                              elem.find("h2", class_="text-left") and elem.find("h2",
                                                                                class_="text-left").text == "Character Facts"]
@@ -120,15 +133,3 @@ for character in dc_comics_characters:
 save_data(existing_data, dc_file_path)
 
 print("Data updated and saved to", dc_file_path)
-
-# [
-# {
-#     Name:,
-#     Story:,
-#     Photo:,
-#     Facts: {
-#       Powers: [],
-#       First Appearance: []
-#     }
-# }
-# ]
